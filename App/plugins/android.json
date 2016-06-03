@@ -1,0 +1,59 @@
+{
+    "prepare_queue": {
+        "installed": [],
+        "uninstalled": []
+    },
+    "config_munge": {
+        "files": {
+            "res/xml/config.xml": {
+                "parents": {
+                    "/*": [
+                        {
+                            "xml": "<feature name=\"Device\"><param name=\"android-package\" value=\"org.apache.cordova.device.Device\" /></feature>",
+                            "count": 1
+                        },
+                        {
+                            "xml": "<feature name=\"Vibration\"><param name=\"android-package\" value=\"org.apache.cordova.vibration.Vibration\" /></feature>",
+                            "count": 1
+                        }
+                    ],
+                    "/widget": [
+                        {
+                            "xml": "<feature name=\"ChromeSocketsTcp\"><param name=\"android-package\" value=\"org.chromium.ChromeSocketsTcp\" /></feature>",
+                            "count": 1
+                        }
+                    ]
+                }
+            },
+            "AndroidManifest.xml": {
+                "parents": {
+                    "/manifest": [
+                        {
+                            "xml": "<uses-permission android:name=\"android.permission.VIBRATE\" />",
+                            "count": 1
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "installed_plugins": {
+        "org.apache.cordova.device": {
+            "PACKAGE_NAME": "com.evothings.garagedoor"
+        },
+        "org.apache.cordova.console": {
+            "PACKAGE_NAME": "com.evothings.garagedoor"
+        },
+        "org.apache.cordova.vibration": {
+            "PACKAGE_NAME": "com.evothings.garagedoor"
+        },
+        "org.chromium.sockets.tcp": {
+            "PACKAGE_NAME": "com.evothings.garagedoor"
+        }
+    },
+    "dependent_plugins": {
+        "org.chromium.common": {
+            "PACKAGE_NAME": "com.evothings.garagedoor"
+        }
+    }
+}
