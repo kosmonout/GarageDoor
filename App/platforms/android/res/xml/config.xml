@@ -10,6 +10,9 @@
     <feature name="ChromeSocketsTcp">
         <param name="android-package" value="org.chromium.ChromeSocketsTcp" />
     </feature>
+    <feature name="ExitApp">
+        <param name="android-package" value="cordova.custom.plugins.exitapp.ExitApp" />
+    </feature>
     <name>GarageDoor</name>
     <description>
         A sample Apache Cordova application that responds to the deviceready event.

@@ -47,10 +47,14 @@ $(window).load(function(){
 	document.addEventListener('pause', function(){
 		clearTimeout(TimerVar); 
 		chrome.sockets.tcp.close(app.socketId);
-		chrome.sockets.tcp.disconnect(app.socketId); 
+		chrome.sockets.tcp.disconnect(app.socketId);
+		app.exitApp();
 		console.log('page hide');
 	},false)
 	document.addEventListener('resume', function(){
+			$('#LightsOnStatus').text('-');
+						$('#GarageDoorStatus').text('-');
+						$('#GateDoorStatus').text('-');
 		console.log('page show');
 		clearTimeout(TimerVar); 
 		chrome.sockets.tcp.close(app.socketId);
@@ -156,28 +160,28 @@ app.receivedData = function (data) {
 			app.connect();
 		}, 3000);
 		if (data[0] === 65) { //ASCII "A" Lichten aan
-			$('#LightsOnStatus').text('Lichten AAN');
+			$('#LightsOnStatus').text('Lights are ON!');
 		} 
 		if (data[0] === 85) { //ASCII "U" Lichten uit
-			$('#LightsOnStatus').text('Lichten UIT');
+			$('#LightsOnStatus').text('Lights are OFF');
 		}
 		if (data[0] === 79) { //ASCII "O" Openen garage deur
-			$('#GarageDoorStatus').text('Openen...');
+			$('#GarageDoorStatus').text('Opening...');
 		} 
 		if (data[0] === 83) { //ASCII "S" Sluiten garage deur
-			$('#GarageDoorStatus').text('Sluiten...');
+			$('#GarageDoorStatus').text('Closing...');
 		}
 		if (data[0] === 76) { //ASCII "L" Garage deur is los :-)
-			$('#GarageDoorStatus').text('Staat open!');
+			$('#GarageDoorStatus').text('Door is OPEN!');
 		} 
 		if (data[0] === 68) { //ASCII "D" Garage deur is dicht
-			$('#GarageDoorStatus').text('Gesloten.');
+			$('#GarageDoorStatus').text('Closed');
 		}
 		if (data[0] === 71) { //ASCII "G" Poort deur is aan het openen
-			$('#GateDoorStatus').text('Openen...');
+			$('#GateDoorStatus').text('Opening...');
 		}
 		if (data[0] === 78) { //ASCII "N" Poort deur geen actie
-			$('#GateDoorStatus').text('......');
+			$('#GateDoorStatus').text('-');
 		}
 };
 

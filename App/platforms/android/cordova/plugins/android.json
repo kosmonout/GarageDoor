@@ -1,0 +1,15 @@
+{
+    "prepare_queue": {
+        "installed": [],
+        "uninstalled": []
+    },
+    "config_munge": {
+        "files": {}
+    },
+    "installed_plugins": {
+        "cordova.custom.plugins.exitapp": {
+            "PACKAGE_NAME": "com.evothings.garagedoor"
+        }
+    },
+    "dependent_plugins": {}
+}

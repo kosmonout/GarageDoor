@@ -1,6 +1,6 @@
-
 #include <ESP8266WiFi.h>
 #include <TickerScheduler.h>
+
 const int port = 1337;
 const char* ssid = "kosmos";
 const char* password = "funhouse";
@@ -16,7 +16,7 @@ const int GarageButtonPin = 0;
 const int grnPin  = 5;
 const int  bluPin  = 4;
 const int  redPin = 16;
-const int Update_ms =1000;
+const int Update_ms = 1000;
 const int GarageButHold_ms = 1000;
 const int GarageDoorActive_ms = 21000;
 const int GateDoorOpen_ms = 3000;
@@ -192,7 +192,7 @@ void loop(void)
     Serial.print("GB ");
     GarageDoorActive();
   }
- 
+
   DoorSensor = digitalRead(DoorSensorPin);
   if (GarageDoorActivated == false) {
     if ( DoorSensor == HIGH) {
@@ -205,7 +205,7 @@ void loop(void)
       GarageDoorOpen = true;
     }
   }
- 
+
 }
 ////////////////////////////////////////
 
