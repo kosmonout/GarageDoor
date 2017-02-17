@@ -244,6 +244,7 @@ void ScreenIsUp() {
   delay(10);
   digitalWrite(RelayScreenDirectionPin, HIGH);
   DisplayStatus();
+  GetRequest();
   tsTimer.add(0, ContactServerInterval_ms, GetRequest, false);
   tsTimer.add(5, ClearJSONInterval_ms, ClearJSON, false);
 }
@@ -258,6 +259,7 @@ void ScreenIsDown()
   delay(10);
   digitalWrite(RelayScreenDirectionPin, HIGH);
   DisplayStatus();
+  GetRequest();
   tsTimer.add(0, ContactServerInterval_ms, GetRequest, false);
   tsTimer.add(5, ClearJSONInterval_ms, ClearJSON, false);
 }
@@ -269,6 +271,7 @@ void StopTimeReached()
   GoingDown = false;
   GoingUp = false;
   DisplayStatus();
+  GetRequest();
   tsTimer.add(0, ContactServerInterval_ms, GetRequest, false);
   tsTimer.add(5, ClearJSONInterval_ms, ClearJSON, false);
 }
@@ -299,6 +302,7 @@ void ScreenStop()
   delay(10);
   digitalWrite(RelayScreenDirectionPin, HIGH);
   DisplayStatus();
+  GetRequest();
   tsTimer.remove(1);
   tsTimer.remove(2);
   tsTimer.add(2, SunStopTime_ms, StopTimeReached, false);
