@@ -5,54 +5,29 @@
 //#include <Wire.h>
 #include "SSD1306.h"
 
-
 //Inputs
-//D6
-const int ButtonUpValuePin = 12;
-//D5
-const int ButtonDownValuePin = 14;
-//D7
-const int RelayScreenOnPin = 13;
-//D0
-const int RelayScreenDirectionPin = 16;
 //D2
 const int SDApin = 4;
 //D1
-const int SCLpin = 5; 
-//How much time does it take to go up and down
-const int SunScreenActive_ms = 5000;
-//After the motor has being stopped it needs some time to avoid overstessing
-const int SunStopTime_ms = 2500;
-const int ButtonDelay_ms = 400;
+const int SCLpin = 5;
 const int DisplayInterval_ms = 2000;
 const int ClearJSONInterval_ms = 3000;
 const int ContactServerInterval_ms = 30000;
 const int port = 80;
 const char* ssid = "kosmos";
 const char* password = "funhouse";
-const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen";
-
-int ButtonUpValue;
-int ButtonDownValue;
-bool GoingUp = false;
-bool GoingDown = false;
-bool IsDown = false;
-bool IsUp = false;
+const char* incommingserver = "http://192.168.2.165/api/app/com.internet/weather";
 
 //Start network
 //ESP8266WebServer WEBserver(port);
 WiFiClient client;
 WiFiServer server(port);
+#define addr_PCF8591 0x48 // PCF8591 bus address
+#define addr_sht31 0x44 // sht31 bus address
+byte ana0, ana1, ana2, ana3;
 SSD1306  display(0x3c, SDApin, SCLpin);
 
 void DisplayStatus();
-void ScreenGoingUp();
-void ScreenGoingDown();
-void ScreenStop();
-void StopTimeReached();
-void ScreenIsUp();
-void ScreenIsDown();
-void ButtonDelay();
 void UpdateDisplay();
 void ClearJSON();
 
@@ -64,13 +39,16 @@ void writeResponse(WiFiClient& client, JsonObject& json);
 int GetRequest();
 bool WIFIconnected = false;
 bool ClientConnected = false;
-bool bDebounceReached = true;
 String ScreenLocation = "?";
 String sJSONsendCommand;
 String sJSONreceiveCommand;
 TickerScheduler tsTimer(6);
 bool bJSONup = false;
 bool bJSONdown = false;
+int temp;
+float cTemp;
+float fTemp;
+float humidity;
 
 ////////////////////////////////////////
 void setup(void)
@@ -84,17 +62,11 @@ void setup(void)
   display.display();
   Serial.begin(115200);
   WiFi.begin(ssid, password);
+  //0 Wire.pins(SDApin,SCLpin);// just to make sure
+  Wire.begin(SDApin, SCLpin); // the SDA and SCL
   WIFIconnected = false;
-  pinMode(RelayScreenOnPin, OUTPUT);
-  pinMode (RelayScreenDirectionPin, OUTPUT);
-  digitalWrite(RelayScreenOnPin, HIGH);
-  digitalWrite(RelayScreenDirectionPin, HIGH);
-  pinMode (ButtonUpValuePin, INPUT_PULLUP);
-  pinMode (ButtonDownValuePin, INPUT_PULLUP);
   // Initialising the UI will init the display too.
   display.clear();
-  //Send screen up as starting point
-  ScreenGoingUp();
   //Display update interval
   tsTimer.add(4, DisplayInterval_ms, UpdateDisplay, false);
   //Servercontact update interval
@@ -107,6 +79,47 @@ void setup(void)
 void loop(void)
 {
   tsTimer.update();
+  Wire.beginTransmission(addr_PCF8591); // wake up PCF8591
+  Wire.write(0x04); // control byte: reads ADC0 then auto-increment
+  Wire.endTransmission(); // end tranmission
+  Wire.requestFrom(addr_PCF8591, 5);
+  while (Wire.available())   // slave may send less than requested
+  {
+    ana0 = Wire.read(); // throw this one away
+    ana0 = Wire.read();
+    ana1 = Wire.read();
+    ana2 = Wire.read();
+    ana3 = Wire.read();
+  }
+  delay(100);
+  // Start I2C Transmission
+  Wire.beginTransmission(addr_sht31);
+  // Send 16-bit command byte
+  Wire.write(0x2C);
+  Wire.write(0x06);
+  // Stop I2C transmission
+  Wire.endTransmission();
+  delay(100);
+  // Request 6 bytes of data
+  Wire.requestFrom(addr_sht31, 6);
+
+  // Read 6 bytes of data
+  // temp msb, temp lsb, temp crc, hum msb, hum lsb, hum crc
+  if (Wire.available() == 6)
+  {
+    unsigned int data[6];
+    data[0] = Wire.read();
+    data[1] = Wire.read();
+    data[2] = Wire.read();
+    data[3] = Wire.read();
+    data[4] = Wire.read();
+    // Convert the data
+    temp = (data[0] * 256) + data[1];
+    cTemp = -45.0 + (175.0 * temp / 65535.0);
+    fTemp = (cTemp * 1.8) + 32.0;
+    humidity = (100.0 * ((data[3] * 256.0) + data[4])) / 65535.0;
+  }
+
   String sParsedJSON;
   // Check if module is still connected to WiFi.
   if (WiFi.status() != WL_CONNECTED)
@@ -144,11 +157,6 @@ void loop(void)
           int size = line.length() + 1;
           char jsonChar[size];
           line.toCharArray(jsonChar, size);
-          //          Serial.println("");
-          //          Serial.print("*");
-          //          Serial.print(jsonChar);
-          //          Serial.print("*");
-          //          Serial.println("");
           StaticJsonBuffer<200> jsonReadBuffer;
           JsonObject& json_parsed = jsonReadBuffer.parseObject(jsonChar);
           if (!json_parsed.success())
@@ -161,14 +169,10 @@ void loop(void)
           if (sParsedJSON == "up")
           {
             sJSONreceiveCommand = "Rcv: " + sParsedJSON;
-            bJSONup = true;
-            bJSONdown = false;
           }
           else if (sParsedJSON == "down")
           {
             sJSONreceiveCommand = "Rcv: " + sParsedJSON;
-            bJSONup = false;
-            bJSONdown = true;
           }
           else
           {
@@ -187,56 +191,9 @@ void loop(void)
       }
     }
   }
-  //Breaks switches needs to be inverted
-  //Make switches the inversion ! can be removed
-  //Needs to be recompiled per device
-
-  //Huis kamer is een maak en maak switch
-  //Kastje met zwarte en witte knop is zwart breek en wit maak
-  //andere kastje is verbreek verbreek switch
-  // kut kwaliteit switches!!!
-  
-  //Break switches
-  ButtonUpValue = !digitalRead(ButtonUpValuePin);
-  ButtonDownValue = !digitalRead(ButtonDownValuePin);
-  
-  //Make switches
-  //ButtonUpValue = digitalRead(ButtonUpValuePin);
-  //ButtonDownValue = digitalRead(ButtonDownValuePin);
-  
-  if (  ((ButtonDownValue == HIGH && ButtonUpValue == LOW) || bJSONup == true) && GoingUp == false && GoingDown == false && bDebounceReached == true)
-  {
-    //Screen send to high
-    bDebounceReached = false;
-    ScreenGoingUp();
-    tsTimer.add(3, ButtonDelay_ms, ButtonDelay, false);
-  }
-  else if ( ((ButtonDownValue == LOW && ButtonUpValue == HIGH) || bJSONdown == true) && GoingUp == false && GoingDown == false && bDebounceReached == true)
-  {
-    //Screen send to low
-    bDebounceReached = false;
-    ScreenGoingDown();
-    tsTimer.add(3, ButtonDelay_ms, ButtonDelay, false);
-  }
-  else if ( GoingUp == true && GoingDown == true)
-  {
-    //When hold do nothing
-  }
-  else if ( (((bJSONdown == true || ButtonDownValue == LOW) && GoingUp == true) || ((bJSONup == true || ButtonUpValue == LOW) && GoingDown == true)) && bDebounceReached == true)
-  {
-    bDebounceReached = false;
-    ScreenStop();
-    tsTimer.add(3, ButtonDelay_ms, ButtonDelay, false);
-  }
-  bJSONup = false;
-  bJSONdown = false;
 }
 
 //#####################################################################################################
-void ButtonDelay()
-{
-  bDebounceReached = true;
-}
 
 void UpdateDisplay()
 {
@@ -247,96 +204,6 @@ void ClearJSON()
 {
   sJSONsendCommand = "";
   sJSONreceiveCommand = "";
-}
-
-void ScreenIsUp() {
-  GoingUp = false;
-  GoingUp = false;
-  tsTimer.remove(1);
-  ScreenLocation = "high";
-  digitalWrite(RelayScreenOnPin, HIGH);
-  delay(10);
-  digitalWrite(RelayScreenDirectionPin, HIGH);
-  DisplayStatus();
-  GetRequest();
-  tsTimer.add(0, ContactServerInterval_ms, GetRequest, false);
-  tsTimer.add(5, ClearJSONInterval_ms, ClearJSON, false);
-}
-
-void ScreenIsDown()
-{
-  GoingDown = false;
-  GoingUp = false;
-  tsTimer.remove(1);
-  ScreenLocation = "low";
-  digitalWrite(RelayScreenOnPin, HIGH);
-  delay(10);
-  digitalWrite(RelayScreenDirectionPin, HIGH);
-  DisplayStatus();
-  GetRequest();
-  tsTimer.add(0, ContactServerInterval_ms, GetRequest, false);
-  tsTimer.add(5, ClearJSONInterval_ms, ClearJSON, false);
-}
-
-void StopTimeReached()
-{
-  tsTimer.remove(2);
-  ScreenLocation = "?";
-  GoingDown = false;
-  GoingUp = false;
-  DisplayStatus();
-  GetRequest();
-  tsTimer.add(0, ContactServerInterval_ms, GetRequest, false);
-  tsTimer.add(5, ClearJSONInterval_ms, ClearJSON, false);
-}
-
-void ScreenGoingUp()
-{
-  tsTimer.remove(0);
-  tsTimer.remove(5);
-  GoingDown = false;
-  GoingUp = true;
-  ScreenLocation = "GoUp";
-  digitalWrite(RelayScreenDirectionPin, HIGH);
-  delay(10);
-  digitalWrite(RelayScreenOnPin, LOW);
-  DisplayStatus();
-  tsTimer.remove(1);
-  tsTimer.add(1, SunScreenActive_ms, ScreenIsUp, false);
-}
-
-void ScreenStop()
-{
-  //Prevent Going Up or Down until timer has reached
-  GoingDown = true;
-  GoingUp = true;
-  tsTimer.remove(0);
-  ScreenLocation = "hold";
-  digitalWrite(RelayScreenOnPin, HIGH);
-  delay(10);
-  digitalWrite(RelayScreenDirectionPin, HIGH);
-  DisplayStatus();
-  GetRequest();
-  tsTimer.remove(1);
-  tsTimer.remove(2);
-  tsTimer.add(2, SunStopTime_ms, StopTimeReached, false);
-  tsTimer.add(0, ContactServerInterval_ms, GetRequest, false);
-  tsTimer.add(5, ClearJSONInterval_ms, ClearJSON, false);
-}
-
-void ScreenGoingDown()
-{
-  GoingDown = true;
-  GoingUp = false;
-  tsTimer.remove(5);
-  tsTimer.remove(0);
-  ScreenLocation = "GoDown";
-  digitalWrite(RelayScreenDirectionPin, LOW);
-  delay(10);
-  digitalWrite(RelayScreenOnPin, LOW);
-  DisplayStatus();
-  tsTimer.remove(1);
-  tsTimer.add(1, SunScreenActive_ms, ScreenIsDown, false);
 }
 
 void DisplayStatus() {
@@ -371,48 +238,12 @@ void DisplayStatus() {
     display.drawString(0, 0,  "DISCONNECTED");
   }
   display.drawLine(0, 32, 128, 32);
-  if (ScreenLocation == "GoDown")
-  {
-    display.drawString(5, 38, "Screen");
-    display.drawString(5, 48, "is going");
-    display.setFont(ArialMT_Plain_24);
-    display.drawString(58, 35, "Down");
-  }
-  else  if (ScreenLocation == "GoUp")
-  {
-    display.drawString(5, 38, "Screen");
-    display.drawString(5, 48, "is going");
-    display.setFont(ArialMT_Plain_24);
-    display.drawString(70, 35, "Up");
-  }
-  else if (ScreenLocation == "high")
-  {
-    display.drawString(5, 38, " Screen");
-    display.drawString(5, 48, "     is");
-    display.setFont(ArialMT_Plain_24);
-    display.drawString(58, 35, "High");
-  }
-  else if (ScreenLocation == "low")
-  {
-    display.drawString(5, 38, " Screen");
-    display.drawString(5, 48, "     is");
-    display.setFont(ArialMT_Plain_24);
-    display.drawString(64, 35, "Low");
-  }
-  else if (ScreenLocation == "hold")
-  {
-    display.drawString(5, 38, " User");
-    display.drawString(5, 48, " Stop");
-    display.setFont(ArialMT_Plain_24);
-    display.drawString(55, 35, "HOLD");
-  }
-  else
-  {
-    display.drawString(5, 38, " Screen");
-    display.drawString(5, 48, "     is");
-    display.setFont(ArialMT_Plain_24);
-    display.drawString(75, 35, "?");
-  }
+  display.drawString(0, 35, String(ana0));
+  display.drawString(25, 35, String(ana1));
+  display.drawString(50, 35, String(ana2));
+  display.drawString(75, 35, String(ana3));
+  display.drawString(0, 46, String(cTemp));
+  display.drawString(60, 46, String(humidity));
   display.display();
   //Activiate screen update
   tsTimer.add(4, DisplayInterval_ms, UpdateDisplay, false);
