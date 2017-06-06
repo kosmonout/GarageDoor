@@ -30,7 +30,12 @@ const int ContactServerInterval_ms = 30000;
 const int port = 80;
 const char* ssid = "kosmos";
 const char* password = "funhouse";
-const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen";
+//Screen down stairs
+//const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen";
+//Screen first floor
+const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen1";
+//Screen second floor
+//const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen2";
 
 int ButtonUpValue;
 int ButtonDownValue;
