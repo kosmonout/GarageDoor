@@ -20,13 +20,18 @@ const int SDApin = 4;
 //D1
 const int SCLpin = 5; 
 //How much time does it take to go up and down
-const int SunScreenActive_ms = 30000;
+//Ground floor
+//const int SunScreenActive_ms = 25000;
+//First floor
+//const int SunScreenActive_ms = 16000;
+//Second floor
+const int SunScreenActive_ms = 26000;
 //After the motor has being stopped it needs some time to avoid overstessing
 const int SunStopTime_ms = 2500;
 const int ButtonDelay_ms = 400;
 const int DisplayInterval_ms = 2000;
 const int ClearJSONInterval_ms = 3000;
-const int ContactServerInterval_ms = 30000;
+const int ContactServerInterval_ms = 300000;
 const int port = 80;
 const char* ssid = "kosmos";
 const char* password = "funhouse";
@@ -197,17 +202,17 @@ void loop(void)
   //Needs to be recompiled per device
 
   //Huis kamer is een maak en maak switch
-  //Kastje met zwarte en witte knop is zwart breek en wit maak
-  //andere kastje is verbreek verbreek switch
+  //Kastje met zwarte en witte knop is zwart breek en wit maak first floor
+  //andere kastje is verbreek verbreek switch second floor
   // kut kwaliteit switches!!!
   
   //Break switches
   ButtonUpValue = !digitalRead(ButtonUpValuePin);
- // ButtonDownValue = !digitalRead(ButtonDownValuePin);
+  ButtonDownValue = !digitalRead(ButtonDownValuePin);
   
   //Make switches
   //ButtonUpValue = digitalRead(ButtonUpValuePin);
-  ButtonDownValue = digitalRead(ButtonDownValuePin);
+  //ButtonDownValue = digitalRead(ButtonDownValuePin);
   
   if (  ((ButtonDownValue == HIGH && ButtonUpValue == LOW) || bJSONup == true) && GoingUp == false && GoingDown == false && bDebounceReached == true)
   {
@@ -295,6 +300,24 @@ void StopTimeReached()
   tsTimer.add(5, ClearJSONInterval_ms, ClearJSON, false);
 }
 
+void ScreenGoingDown()
+{
+  GoingDown = true;
+  GoingUp = false;
+  tsTimer.remove(5);
+  tsTimer.remove(0);
+  ScreenLocation = "GoDown";
+  // Ground Floor
+  //digitalWrite(RelayScreenDirectionPin, HIGH);
+  // Second First Floor
+  digitalWrite(RelayScreenDirectionPin, LOW);
+  delay(10);
+  digitalWrite(RelayScreenOnPin, LOW);
+  DisplayStatus();
+  tsTimer.remove(1);
+  tsTimer.add(1, SunScreenActive_ms, ScreenIsDown, false);
+}
+
 void ScreenGoingUp()
 {
   tsTimer.remove(0);
@@ -302,6 +325,9 @@ void ScreenGoingUp()
   GoingDown = false;
   GoingUp = true;
   ScreenLocation = "GoUp";
+  // Ground Floor
+  //digitalWrite(RelayScreenDirectionPin, LOW);
+  //Second First Floor
   digitalWrite(RelayScreenDirectionPin, HIGH);
   delay(10);
   digitalWrite(RelayScreenOnPin, LOW);
@@ -327,21 +353,6 @@ void ScreenStop()
   tsTimer.add(2, SunStopTime_ms, StopTimeReached, false);
   tsTimer.add(0, ContactServerInterval_ms, GetRequest, false);
   tsTimer.add(5, ClearJSONInterval_ms, ClearJSON, false);
-}
-
-void ScreenGoingDown()
-{
-  GoingDown = true;
-  GoingUp = false;
-  tsTimer.remove(5);
-  tsTimer.remove(0);
-  ScreenLocation = "GoDown";
-  digitalWrite(RelayScreenDirectionPin, LOW);
-  delay(10);
-  digitalWrite(RelayScreenOnPin, LOW);
-  DisplayStatus();
-  tsTimer.remove(1);
-  tsTimer.add(1, SunScreenActive_ms, ScreenIsDown, false);
 }
 
 void DisplayStatus() {
