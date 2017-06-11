@@ -19,6 +19,14 @@ const int RelayScreenDirectionPin = 16;
 const int SDApin = 4;
 //D1
 const int SCLpin = 5; 
+
+//Screen down stairs
+//const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen";
+//Screen first floor
+//const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen1";
+//Screen second floor
+const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen2";
+
 //How much time does it take to go up and down
 //Ground floor
 //const int SunScreenActive_ms = 25000;
@@ -35,12 +43,6 @@ const int ContactServerInterval_ms = 300000;
 const int port = 80;
 const char* ssid = "kosmos";
 const char* password = "funhouse";
-//Screen down stairs
-//const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen";
-//Screen first floor
-const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen1";
-//Screen second floor
-//const char* incommingserver = "http://192.168.2.165/api/app/com.internet/screen2";
 
 int ButtonUpValue;
 int ButtonDownValue;
@@ -307,7 +309,7 @@ void ScreenGoingDown()
   tsTimer.remove(5);
   tsTimer.remove(0);
   ScreenLocation = "GoDown";
-  // Ground Floor
+  //Ground Floor
   //digitalWrite(RelayScreenDirectionPin, HIGH);
   // Second First Floor
   digitalWrite(RelayScreenDirectionPin, LOW);
