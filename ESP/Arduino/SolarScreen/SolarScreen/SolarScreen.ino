@@ -20,7 +20,7 @@ const int SDApin = 4;
 //D1
 const int SCLpin = 5; 
 //How much time does it take to go up and down
-const int SunScreenActive_ms = 5000;
+const int SunScreenActive_ms = 30000;
 //After the motor has being stopped it needs some time to avoid overstessing
 const int SunStopTime_ms = 2500;
 const int ButtonDelay_ms = 400;
@@ -198,11 +198,11 @@ void loop(void)
   
   //Break switches
   ButtonUpValue = !digitalRead(ButtonUpValuePin);
-  ButtonDownValue = !digitalRead(ButtonDownValuePin);
+ // ButtonDownValue = !digitalRead(ButtonDownValuePin);
   
   //Make switches
   //ButtonUpValue = digitalRead(ButtonUpValuePin);
-  //ButtonDownValue = digitalRead(ButtonDownValuePin);
+  ButtonDownValue = digitalRead(ButtonDownValuePin);
   
   if (  ((ButtonDownValue == HIGH && ButtonUpValue == LOW) || bJSONup == true) && GoingUp == false && GoingDown == false && bDebounceReached == true)
   {

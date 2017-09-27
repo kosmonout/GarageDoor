@@ -2,34 +2,62 @@
 #include <ESP8266HTTPClient.h>
 #include <TickerScheduler.h>
 #include <ArduinoJson.h>
-//#include <Wire.h>
 #include "SSD1306.h"
+#include "BMP280.h"
+#include "SHT31.h"
+#include "MAX44009.h"
+#include "ADS1015.h"
 
+/* Comment this out to disable prints and save space */
+#define BLYNK_PRINT Serial
+#define BLYNK_GREEN     "#23C48E"
+#define BLYNK_BLUE      "#04C0F8"
+#define BLYNK_YELLOW    "#ED9D00"
+#define BLYNK_RED       "#D3435C"
+#define BLYNK_DARK_BLUE "#5F7CD8"
+#include <BlynkSimpleEsp8266.h>
 //Inputs
 //D2
-const int SDApin = 4;
+#define  SDApin 4
 //D1
-const int SCLpin = 5;
-const int DisplayInterval_ms = 2000;
-const int ClearJSONInterval_ms = 3000;
-const int ContactServerInterval_ms = 30000;
-const int port = 80;
-const char* ssid = "kosmos";
-const char* password = "funhouse";
-const char* incommingserver = "http://192.168.2.165/api/app/com.internet/weather";
+#define SCLpin 5
+#define DISPLAY_INTERVAL_MS 3000
+#define CLEAR_JSON_INTERVAL_MS 3000
+#define CONTACT_SERVER_INTERVAL_MS 20000
+#define UPDATE_SENSOR_MS 5000
+#define HTTP_PORT 80
+#define SSID "kosmos"
+#define PASSWORD "funhouse"
+#define BLYNK_AUTH "63fb3008df63415784b2284c087c64bd"
+#define INCOMMING_SERVER "http://192.168.2.165/api/app/com.internet/weather"
+
+
 
 //Start network
-//ESP8266WebServer WEBserver(port);
 WiFiClient client;
-WiFiServer server(port);
-#define addr_PCF8591 0x48 // PCF8591 bus address
-#define addr_sht31 0x44 // sht31 bus address
-byte ana0, ana1, ana2, ana3;
-SSD1306  display(0x3c, SDApin, SCLpin);
+WiFiServer server(HTTP_PORT);
 
+#define ADDR_SHT31 0x44 // sht31 bus address
+#define ADDR_SSD1306 0x3c // PCF8591 bus address
+#define ADDR_MAX44009 0xCB // PCF8591 bus address
+#define WIND_ALARM 20 // PCF8591 bus address
+#define COUT_WIND_ALARM 50
+
+SSD1306  display(ADDR_SSD1306, SDApin, SCLpin);
+BMP280 bmp(SDApin, SCLpin);
+SHT31 sht31(SDApin, SCLpin);
+Max44009 myLux(ADDR_MAX44009);
+ADS1115 ads;   
+
+char readBytes(unsigned char *values, char length);
+char writeBytes(unsigned char *values, char length);
+char readInt(char address, int16_t &value);
+char readUInt(char address, uint16_t &value);
 void DisplayStatus();
 void UpdateDisplay();
+void UpdateSensors();
 void ClearJSON();
+uint8_t crc8(const uint8_t *data, uint8_t len);
 
 bool readRequest(WiFiClient& client);
 String prepareHtmlPage();
@@ -37,90 +65,85 @@ JsonObject& prepareResponse(JsonBuffer& jsonBuffer);
 void writeResponse(WiFiClient& client, JsonObject& json);
 
 int GetRequest();
+int iDisplay = 1;
 bool WIFIconnected = false;
 bool ClientConnected = false;
-String ScreenLocation = "?";
+double dTemperature;
+double dHumidity;
+double dPressure;
+double dLightLux;
+double dWindPower;
+String sWindDirection;
+boolean bRain;
+int iAlarmCount;
+boolean bWAlarm = false;
 String sJSONsendCommand;
-String sJSONreceiveCommand;
-TickerScheduler tsTimer(6);
-bool bJSONup = false;
-bool bJSONdown = false;
-int temp;
-float cTemp;
-float fTemp;
-float humidity;
+TickerScheduler tsTimer(3);
 
 ////////////////////////////////////////
 void setup(void)
 {
+  Serial.begin(115200);
+  Serial.println("Start");
   display.init();
   display.setContrast(255);
   display.flipScreenVertically();
   display.setFont(ArialMT_Plain_24);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.drawStringMaxWidth(0, 20, 128, "Booting.....");
+  display.drawStringMaxWidth(0, 0, 128, "Booting.....");
   display.display();
+  display.setFont(ArialMT_Plain_10);
+  
+  if (!bmp.begin()) 
+  {
+    display.drawStringMaxWidth(0, 28, 128,"NOT found BMP280 sensor");
+  }
+  else
+  {
+    display.drawStringMaxWidth(0, 28, 128,"Found BMP280 sensor");
+  }
+  display.display();
+  if (! sht31.begin(ADDR_SHT31)) 
+  {  
+    display.drawStringMaxWidth(0, 40, 128,"NOT found SHT31");
+  }
+  else
+  {   
+    display.drawStringMaxWidth(0, 40, 128,"Found SHT31");
+  }
+  display.display();
+  dLightLux = myLux.getLux(); //dummy read to generate an error
+  if (myLux.getError() != 0) 
+  {   
+    display.drawStringMaxWidth(0, 52, 128,"NOT found MAX77009");
+  }
+  else
+  {
+   display.drawStringMaxWidth(0, 52, 128,"Found MAX77009");  
+  }
+  display.display();
+  Blynk.begin(BLYNK_AUTH, SSID, PASSWORD);
+
   Serial.begin(115200);
-  WiFi.begin(ssid, password);
-  //0 Wire.pins(SDApin,SCLpin);// just to make sure
+  //WiFi.begin(SSID, PASSWORD);
   Wire.begin(SDApin, SCLpin); // the SDA and SCL
   WIFIconnected = false;
   // Initialising the UI will init the display too.
   display.clear();
   //Display update interval
-  tsTimer.add(4, DisplayInterval_ms, UpdateDisplay, false);
+  tsTimer.add(0, DISPLAY_INTERVAL_MS, UpdateDisplay, false);
   //Servercontact update interval
-  tsTimer.add(0, ContactServerInterval_ms, GetRequest, false);
-  //Clear JSON Line back to IP
-  tsTimer.add(5, ClearJSONInterval_ms, ClearJSON, false);
+  tsTimer.add(1, CONTACT_SERVER_INTERVAL_MS, GetRequest, false);
+  //UpdateSensors
+  tsTimer.add(2, UPDATE_SENSOR_MS, UpdateSensors, false);
+  UpdateSensors();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void loop(void)
 {
+  Blynk.run();
   tsTimer.update();
-  Wire.beginTransmission(addr_PCF8591); // wake up PCF8591
-  Wire.write(0x04); // control byte: reads ADC0 then auto-increment
-  Wire.endTransmission(); // end tranmission
-  Wire.requestFrom(addr_PCF8591, 5);
-  while (Wire.available())   // slave may send less than requested
-  {
-    ana0 = Wire.read(); // throw this one away
-    ana0 = Wire.read();
-    ana1 = Wire.read();
-    ana2 = Wire.read();
-    ana3 = Wire.read();
-  }
-  delay(100);
-  // Start I2C Transmission
-  Wire.beginTransmission(addr_sht31);
-  // Send 16-bit command byte
-  Wire.write(0x2C);
-  Wire.write(0x06);
-  // Stop I2C transmission
-  Wire.endTransmission();
-  delay(100);
-  // Request 6 bytes of data
-  Wire.requestFrom(addr_sht31, 6);
-
-  // Read 6 bytes of data
-  // temp msb, temp lsb, temp crc, hum msb, hum lsb, hum crc
-  if (Wire.available() == 6)
-  {
-    unsigned int data[6];
-    data[0] = Wire.read();
-    data[1] = Wire.read();
-    data[2] = Wire.read();
-    data[3] = Wire.read();
-    data[4] = Wire.read();
-    // Convert the data
-    temp = (data[0] * 256) + data[1];
-    cTemp = -45.0 + (175.0 * temp / 65535.0);
-    fTemp = (cTemp * 1.8) + 32.0;
-    humidity = (100.0 * ((data[3] * 256.0) + data[4])) / 65535.0;
-  }
-
-  String sParsedJSON;
   // Check if module is still connected to WiFi.
   if (WiFi.status() != WL_CONNECTED)
   {
@@ -142,46 +165,12 @@ void loop(void)
       DisplayStatus();
     }
     WiFiClient client = server.available();
-
     if (client)
     {
-      Serial.println("Client.");
       bool success = readRequest(client);
       if (success)
       {
-        String line = client.readStringUntil('\r');
-        //Read JSON
-        if (line.length() > 0)
-        {
-          // Parse JSON
-          int size = line.length() + 1;
-          char jsonChar[size];
-          line.toCharArray(jsonChar, size);
-          StaticJsonBuffer<200> jsonReadBuffer;
-          JsonObject& json_parsed = jsonReadBuffer.parseObject(jsonChar);
-          if (!json_parsed.success())
-          {
-            Serial.println("parseObject() failed");
-            return;
-          }
-          //json_parsed.prettyPrintTo(Serial);
-          String sParsedJSON = json_parsed["screen"][0];
-          if (sParsedJSON == "up")
-          {
-            sJSONreceiveCommand = "Rcv: " + sParsedJSON;
-          }
-          else if (sParsedJSON == "down")
-          {
-            sJSONreceiveCommand = "Rcv: " + sParsedJSON;
-          }
-          else
-          {
-            sJSONreceiveCommand = "Rcv: ?";
-            DisplayStatus();
-          }
-        }
         //Send JSON
-        //delay(1000);
         StaticJsonBuffer<200> jsonWriteBuffer;
         JsonObject& jsonWrite = prepareResponse(jsonWriteBuffer);
         writeResponse(client, jsonWrite);
@@ -198,12 +187,55 @@ void loop(void)
 void UpdateDisplay()
 {
   DisplayStatus();
+  iDisplay++;
+  if (iDisplay > 4) iDisplay = 1;
 }
 
-void ClearJSON()
+void UpdateSensors()
 {
-  sJSONsendCommand = "";
-  sJSONreceiveCommand = "";
+  dTemperature = sht31.readTemperature();
+  dHumidity = sht31.readHumidity();
+  dPressure = bmp.readPressure() / 100;
+  dLightLux = myLux.getLux();
+  dWindPower = 12.0;
+  sWindDirection = "NO";
+  bRain = false;
+  if ((dWindPower > WIND_ALARM || bRain == true) && bWAlarm == false )
+  {
+    bWAlarm = true;
+    iAlarmCount = COUT_WIND_ALARM;
+  } else if (iAlarmCount == 0 && bRain == false)
+  {
+    bWAlarm = false;
+  }
+
+  //Upload to Blynk
+  Blynk.virtualWrite(V1, dTemperature);
+  Blynk.setProperty(V1, "color", BLYNK_DARK_BLUE);
+  Blynk.virtualWrite(V2, dHumidity);
+  Blynk.virtualWrite(V3, dPressure);
+  Blynk.virtualWrite(V4, dLightLux);
+  Blynk.virtualWrite(V5, dWindPower);
+  Blynk.virtualWrite(V6, sWindDirection);
+  if (bRain) {
+    Blynk.virtualWrite(V7, "Detected");
+  }
+  else
+  {
+    Blynk.virtualWrite(V7, "None");
+  }
+  if (bWAlarm) {
+    Blynk.virtualWrite(V8, "Triggered");
+  }
+  else
+  {
+    Blynk.virtualWrite(V8, "None");
+  }
+
+  if (iAlarmCount >= 0)
+  {
+    iAlarmCount--;
+  }
 }
 
 void DisplayStatus() {
@@ -214,63 +246,103 @@ void DisplayStatus() {
   if (WIFIconnected == true)
   {
     display.drawString(0, 0, "CONNECTED P: " + String(WiFi.RSSI()) + " dBm");
-    if (sJSONsendCommand == "" && sJSONreceiveCommand == "")
+    if (sJSONsendCommand == "")
     {
-      display.drawString(0, 16, "IP: " + WiFi.localIP().toString());
+      display.drawString(0, 11, "IP: " + WiFi.localIP().toString());
     }
-    else if (sJSONsendCommand != "" && sJSONreceiveCommand != "")
+    else
     {
-      display.drawString(0, 16, sJSONsendCommand);
-      display.drawString(72, 16, sJSONreceiveCommand);
-      display.drawString(64, 16, "|");
-    } else if (sJSONsendCommand != "" && sJSONreceiveCommand == "")
-    {
-      display.drawString(0, 16, sJSONsendCommand);
-      display.drawString(64, 16, "|");
-    } else if (sJSONsendCommand == "" && sJSONreceiveCommand != "")
-    {
-      display.drawString(72, 16, sJSONreceiveCommand);
-      display.drawString(64, 16, "|");
+      display.drawString(0, 11, sJSONsendCommand);
+      sJSONsendCommand = "";
     }
   }
   else
   {
     display.drawString(0, 0,  "DISCONNECTED");
   }
-  display.drawLine(0, 32, 128, 32);
-  display.drawString(0, 35, String(ana0));
-  display.drawString(25, 35, String(ana1));
-  display.drawString(50, 35, String(ana2));
-  display.drawString(75, 35, String(ana3));
-  display.drawString(0, 46, String(cTemp));
-  display.drawString(60, 46, String(humidity));
+  display.drawLine(63, 23, 63, 64);
+  display.drawLine(0, 23, 128, 23);
+  switch (iDisplay)
+  {
+    case 1:
+      display.drawString(0, 26, "Temp [ºC]");
+      display.drawString(68, 26, "Moist [%]");
+      display.drawString(0, 45, String(dTemperature));
+      display.drawString(68, 45, String(dHumidity));
+      break;
+    case 2:
+      display.drawString(0, 26, "Pres [mBar]");
+      display.drawString(68, 26, "Light [%]");
+      display.drawString(0, 45, String(double(dPressure)));
+      display.drawString(68, 45, String(dLightLux));
+      break;
+    case 3:
+      display.drawString(0, 26, "WndP [km/h]");
+      display.drawString(68, 26, "WndDir");
+      display.drawString(0, 45, String(dWindPower));
+      display.drawString(68, 45, sWindDirection);
+      break;
+    case 4:
+      display.drawString(0, 26, "Rain");
+      display.drawString(68, 26, "Alarm");
+      if (bRain) {
+        display.drawString(0, 45, String("Detected"));
+      }
+      else
+      {
+        display.drawString(0, 45, String("None"));
+      }
+      if (bWAlarm) {
+        display.drawString(68, 45, String("Triggered"));
+      }
+      else
+      {
+        display.drawString(68, 45, String("None"));
+      }
+      break;
+  }
   display.display();
   //Activiate screen update
-  tsTimer.add(4, DisplayInterval_ms, UpdateDisplay, false);
+  tsTimer.add(0, DISPLAY_INTERVAL_MS, UpdateDisplay, false);
 }
 int GetRequest()
 {
   sJSONsendCommand = "Snd: GET";
   DisplayStatus();
   HTTPClient http;
-  http.begin(incommingserver);
+  http.begin(INCOMMING_SERVER);
   int httpCode = http.GET();
   http.end();
   return httpCode;
 }
 
-JsonObject& prepareResponse(JsonBuffer & jsonBuffer) {
+JsonObject& prepareResponse(JsonBuffer & jsonBuffer)
+{
   JsonObject& root = jsonBuffer.createObject();
-  JsonArray& screenValues = root.createNestedArray("screen");
-  screenValues.add(ScreenLocation);
-  sJSONsendCommand = "Snd: " + ScreenLocation;
+  root["dTempOut"] = String(dTemperature);
+  root["dHumidityOut"] = String(dHumidity);
+  root["dPressureOut"] = String(dPressure);
+  root["dLightLuxOut"] = String(dLightLux);
+  root["sWindDirection"] = sWindDirection;
+  root["dWindPower"] = String(dWindPower);
+  if (bRain == true)
+  {
+    root["bRain"] = "Detected";
+  }
+  else
+  {
+    root["bRain"] = "None";
+  }
+  if (bWAlarm == true)
+  {
+    root["bWAlarm"] = "Triggered";
+  }
+  else
+  {
+    root["bWAlarm"] = "None";
+  }
+  sJSONsendCommand = "Snd Sensor status";
   DisplayStatus();
-  //  JsonArray& humiValues = root.createNestedArray("humidity");
-  //  humiValues.add(pfHum);
-  //  JsonArray& dewpValues = root.createNestedArray("dewpoint");
-  //  dewpValues.add(pfDew);
-  //  JsonArray& EsPvValues = root.createNestedArray("Systemv");
-  //  EsPvValues.add(pfVcc / 1000, 3);
   return root;
 }
 
@@ -299,7 +371,6 @@ bool readRequest(WiFiClient & client) {
   }
   return false;
 }
-////////////////////////////////////////
 
 
 
