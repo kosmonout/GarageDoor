@@ -1,8 +1,8 @@
-// Copyright Benoit Blanchon 2014-2016
+// Copyright Benoit Blanchon 2014-2017
 // MIT License
 //
 // Arduino JSON library
-// https://github.com/bblanchon/ArduinoJson
+// https://bblanchon.github.io/ArduinoJson/
 // If you like this project, please add a star!
 
 #include <ArduinoJson.h>
@@ -39,9 +39,14 @@ void setup() {
   // JsonBuffer.
   root["sensor"] = F("gps");
 
+  // You can compare the content of a JsonVariant to a Flash String
+  if (root["sensor"] == F("gps")) {
+    // ...
+  }
+
 #else
 
-#warning PROGMEM is only supported on AVR architecture
+#warning PROGMEM is not supported on this platform
 
 #endif
 }

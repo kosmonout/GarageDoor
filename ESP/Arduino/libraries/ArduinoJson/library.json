@@ -6,14 +6,14 @@
     "type": "git",
     "url": "https://github.com/bblanchon/ArduinoJson.git"
   },
-  "version": "5.7.3",
+  "version": "5.9.0",
   "authors": {
     "name": "Benoit Blanchon",
-    "url": "http://blog.benoitblanchon.fr"
+    "url": "https://blog.benoitblanchon.fr"
   },
   "exclude": [
+    "fuzzing",
     "scripts",
-    "src/ArduinoJson.h",
     "test",
     "third-party"
   ],

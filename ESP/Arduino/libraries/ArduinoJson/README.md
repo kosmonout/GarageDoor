@@ -1,13 +1,14 @@
-Arduino JSON library
+ArduinoJson - C++ JSON library for IoT
 ====================
 
 [![Build status](https://ci.appveyor.com/api/projects/status/m7s53wav1l0abssg/branch/master?svg=true)](https://ci.appveyor.com/project/bblanchon/arduinojson/branch/master) [![Build Status](https://travis-ci.org/bblanchon/ArduinoJson.svg?branch=master)](https://travis-ci.org/bblanchon/ArduinoJson) [![Coverage Status](https://img.shields.io/coveralls/bblanchon/ArduinoJson.svg)](https://coveralls.io/r/bblanchon/ArduinoJson?branch=master) [![Star this project](http://githubbadges.com/star.svg?user=bblanchon&repo=ArduinoJson&style=flat&color=fff&background=007ec6)](https://github.com/bblanchon/ArduinoJson)
 
 *An elegant and efficient JSON library for embedded systems.*
 
-It's designed to have the most intuitive API, the smallest footprint and works without any allocation on the heap (no malloc).
+It's designed to have the most intuitive API, the smallest footprint and is able to work without any allocation on the heap (no malloc).
 
 It has been written with Arduino in mind, but it isn't linked to Arduino libraries so you can use this library in any other C++ project.
+For instance, it supports Aduino's `String` and `Stream`, but also `std::string`, `std::istream` and `std::ostream`.
 
 Features
 --------
@@ -35,8 +36,6 @@ Works on
 * RedBearLab boards (BLE Nano...)
 * Computers (Windows, Linux, OSX...)
 
-See [FAQ: Compatibility issues](https://github.com/bblanchon/ArduinoJson/wiki/Compatibility-issues)
-
 Quick start
 -----------
 
@@ -54,6 +53,8 @@ long time          = root["time"];
 double latitude    = root["data"][0];
 double longitude   = root["data"][1];
 ```
+
+[See JsonParserExample.ino](examples/JsonParserExample/JsonParserExample.ino)
 
 #### Encoding / Generating
 
@@ -73,11 +74,16 @@ root.printTo(Serial);
 // {"sensor":"gps","time":1351824120,"data":[48.756080,2.302038]}
 ```
 
+[See JsonGeneratorExample.ino](examples/JsonGeneratorExample/JsonGeneratorExample.ino)
+
 
 Documentation
 -------------
 
-The documentation is available online in the [Arduino JSON wiki](https://github.com/bblanchon/ArduinoJson/wiki)
+The documentation is available online in the [ArduinoJson Website](https://bblanchon.github.io/ArduinoJson/).
+
+The [ArduinoJson Assistant](https://bblanchon.github.io/ArduinoJson/assistant/) helps you get started with the library.
+
 
 Testimonials
 ------------
@@ -128,6 +134,9 @@ Special thanks to the following persons and companies who made generous donation
 * Yoeri Kroon <img alt='Netherlands' src='https://cdnjs.cloudflare.com/ajax/libs/emojione/2.1.4/assets/svg/1f1f3-1f1f1.svg' width='18' height='18'>
 * Andrew Melvin <img alt='United Kingdom' src='https://cdnjs.cloudflare.com/ajax/libs/emojione/2.1.4/assets/svg/1f1ec-1f1e7.svg' width='18' height='18'>
 * Doanh Luong <img alt ='Vietnam' src='https://cdnjs.cloudflare.com/ajax/libs/emojione/2.1.4/assets/svg/1f1fb-1f1f3.svg' width='18' height='18'>
+* Christoph Schmidt <img alt='Germany' src='https://cdnjs.cloudflare.com/ajax/libs/emojione/2.1.4/assets/svg/1f1e9-1f1ea.svg' width='18' height='18'>
+* OpenEVSE LLC <img alt='USA' src='https://cdnjs.cloudflare.com/ajax/libs/emojione/2.1.4/assets/svg/1f1fa-1f1f8.svg' width='18' height='18'>
+* Prokhoryatov Alexey <img alt='Russia' src='https://cdnjs.cloudflare.com/ajax/libs/emojione/2.1.4/assets/svg/1f1f7-1f1fa.svg' width='18' height='18'>
 
 ---
 

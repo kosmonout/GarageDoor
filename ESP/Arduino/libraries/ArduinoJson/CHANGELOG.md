@@ -1,6 +1,76 @@
 ArduinoJson: change log
 =======================
 
+v5.9.0
+------
+
+* Added `JsonArray::remove(iterator)` (issue #479)
+* Added `JsonObject::remove(iterator)`
+* Renamed `JsonArray::removeAt(size_t)` into `remove(size_t)`
+* Renamed folder `include/` to `src/`
+* Fixed warnings `floating constant exceeds range of float`and `floating constant truncated to zero` (issue #483)
+* Removed `Print` class and converted `printTo()` to a template method (issue #276)
+* Removed example `IndentedPrintExample.ino`
+* Now compatible with Particle 0.6.1, thanks to Jacob Nite (issue #294 and PR #461 by @foodbag)
+
+v5.8.4
+------
+
+* Added custom implementation of `strtod()` (issue #453)
+* Added custom implementation of `strtol()` (issue #465)
+* `char` is now treated as an integral type (issue #337, #370)
+
+v5.8.3
+------
+
+* Fixed an access violation in `DynamicJsonBuffer` when memory allocation fails (issue #433)
+* Added operators `==` and `!=` for two `JsonVariant`s (issue #436)
+* Fixed `JsonVariant::operator[const FlashStringHelper*]` (issue #441)
+
+v5.8.2
+------
+
+* Fixed parsing of comments (issue #421)
+* Fixed ignored `Stream` timeout (issue #422)
+* Made sure we don't read more that necessary (issue #422)
+* Fixed error when the key of a `JsonObject` is a `char[]` (issue #423)
+* Reduced code size when using `const` references
+* Fixed error with string of type `unsigned char*` (issue #428)
+* Added `deprecated` attribute on `asArray()`, `asObject()` and `asString()` (issue #420)
+
+v5.8.1
+------
+
+* Fixed error when assigning a `volatile int` to a `JsonVariant` (issue #415)
+* Fixed errors with Variable Length Arrays (issue #416)
+* Fixed error when both `ARDUINOJSON_ENABLE_STD_STREAM` and `ARDUINOJSON_ENABLE_ARDUINO_STREAM` are set to `1`
+* Fixed error "Stream does not name a type" (issue #412)
+
+v5.8.0
+------
+
+* Added operator `==` to compare `JsonVariant` and strings (issue #402)
+* Added support for `Stream` (issue #300)
+* Reduced memory consumption by not duplicating spaces and comments
+
+**BREAKING CHANGES**:
+
+`JsonBuffer::parseObject()` and  `JsonBuffer::parseArray()` have been pulled down to the derived classes `DynamicJsonBuffer` and `StaticJsonBufferBase`.
+
+This means that if you have code like:
+
+```c++
+void myFunction(JsonBuffer& jsonBuffer);
+```
+
+you need to replace it with one of the following:
+
+```c++
+void myFunction(DynamicJsonBuffer& jsonBuffer);
+void myFunction(StaticJsonBufferBase& jsonBuffer);
+template<typename TJsonBuffer> void myFunction(TJsonBuffer& jsonBuffer);
+```
+
 v5.7.3
 ------
 

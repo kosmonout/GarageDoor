@@ -1,8 +1,8 @@
-// Copyright Benoit Blanchon 2014-2016
+// Copyright Benoit Blanchon 2014-2017
 // MIT License
 //
 // Arduino JSON library
-// https://github.com/bblanchon/ArduinoJson
+// https://bblanchon.github.io/ArduinoJson/
 // If you like this project, please add a star!
 
 #include <ArduinoJson.h>
@@ -47,6 +47,11 @@ void setup() {
   // You can also concatenate strings
   // WARNING: the content of the String will be duplicated in the JsonBuffer.
   root[String("sen") + "sor"] = String("gp") + "s";
+
+  // You can compare the content of a JsonObject with a String
+  if (root["sensor"] == sensor) {
+    // ...
+  }
 
   // Lastly, you can print the resulting JSON to a String
   String output;

@@ -1,6 +1,6 @@
-// Arduino RBD Button Library v2.0.1 - Read and debounce buttons and switches.
+// Arduino RBD Button Library v2.1.1 - Read and debounce buttons and switches.
 // https://github.com/alextaujenis/RBD_Button
-// Copyright 2015 Alex Taujenis
+// Copyright 2016 Alex Taujenis
 // MIT License
 
 #include <Arduino.h>
@@ -43,36 +43,34 @@ namespace RBD {
 
   bool Button::onPressed() {
     if(isPressed()) {
-      if(!_has_been_pressed && _pressed_debounce.isExpired()) {
-        _pressed_debounce.restart();
-        _has_been_pressed = true;
-        return true;
+      _pressed_debounce.restart();
+      if(!_has_been_pressed) {
+        return _has_been_pressed = true;
       }
-      else {
-        return false;
-      }
+      return false;
+    }
+    // else
+    if(_pressed_debounce.isExpired()) {
+      return _has_been_pressed = false;
     }
     else {
-      _pressed_debounce.restart();
-      _has_been_pressed = false;
       return false;
     }
   }
 
   bool Button::onReleased() {
     if(isReleased()) {
-      if(!_has_been_released && _released_debounce.isExpired()) {
-        _released_debounce.restart();
-        _has_been_released = true;
-        return true;
+      _released_debounce.restart();
+      if(!_has_been_released) {
+        return _has_been_released = true;
       }
-      else {
-        return false;
-      }
+      return false;
+    }
+    // else isPressed()
+    if(_released_debounce.isExpired()) {
+      return _has_been_released = false;
     }
     else {
-      _released_debounce.restart();
-      _has_been_released = false;
       return false;
     }
   }
